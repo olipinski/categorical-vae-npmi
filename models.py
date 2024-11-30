@@ -15,7 +15,7 @@ def gumbel_distribution_sample(shape: torch.Size, eps=1e-20) -> torch.Tensor:
 
 
 def gumbel_softmax_distribution_sample(
-    logits: torch.Tensor, temperature: float
+        logits: torch.Tensor, temperature: float
 ) -> torch.Tensor:
     """Adds Gumbel noise to `logits` and applies softmax along the last dimension.
 
@@ -30,7 +30,7 @@ def gumbel_softmax_distribution_sample(
 
 
 def gumbel_softmax(
-    logits: torch.Tensor, temperature: float, batch=False
+        logits: torch.Tensor, temperature: float, hard=False, batch=False
 ) -> torch.Tensor:
     """
     Gumbel-softmax.
@@ -45,7 +45,18 @@ def gumbel_softmax(
     assert len(logits.shape) == 2
     y = gumbel_softmax_distribution_sample(logits, temperature)
     n_classes = input_shape[-1]
-    return y.view(input_shape)
+    if hard:
+        # Replace y with a one-hot vector, y_hard.
+        _, max_indices = y.max(dim=-1)
+        y_hard = torch.zeros_like(y).view(-1, input_shape[-1])
+        y_hard.scatter_(1, max_indices.view(-1, 1), 1)
+        y_hard = y_hard.view(input_shape)
+        # This line basically says: give y_hard the gradients of y,
+        # but retain the value of y_hard.
+        y_hard = (y_hard - y).detach() + y
+        return y_hard.view(input_shape)
+    else:
+        return y.view(input_shape)
 
 
 class Encoder(torch.nn.Module):
@@ -55,7 +66,7 @@ class Encoder(torch.nn.Module):
     K: int  # number of classes
 
     def __init__(
-        self, N: int, K: int, input_shape: torch.Size, convolutional: bool = True
+            self, N: int, K: int, input_shape: torch.Size, convolutional: bool = True
     ):
         super().__init__()
         self.N = N
@@ -101,7 +112,7 @@ class Decoder(torch.nn.Module):
     K: int  # number of classes
 
     def __init__(
-        self, N: int, K: int, output_shape: torch.Size, convolutional: bool = True
+            self, N: int, K: int, output_shape: torch.Size, convolutional: bool = True
     ):
         super().__init__()
         self.N = N
@@ -164,7 +175,7 @@ class CategoricalVAE(torch.nn.Module):
         self.temperature = 1.0
 
     def forward(
-        self, x: torch.Tensor, temperature: float = 1.0
+            self, x: torch.Tensor, temperature: float = 1.0
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """VAE forward pass. Encoder produces phi, the parameters of a categorical distribution.
         Samples from categorical(phi) using gumbel softmax to produce a z. Passes z through encoder p(x|z)
@@ -182,7 +193,7 @@ class CategoricalVAE(torch.nn.Module):
         return phi, x_hat
 
     def generate_random_image(
-        self, N: int, K: int, temperature: float = 1.0
+            self, N: int, K: int, temperature: float = 1.0
     ) -> torch.Tensor:
         # logging: and generate random image
         batch_size = 1

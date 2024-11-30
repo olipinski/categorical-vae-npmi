@@ -65,8 +65,8 @@ def main() -> None:
     initial_temperature = 1.0
     minimum_temperature = 0.5
     temperature_anneal_rate = 0.00003
-    K = 10  # number of classes
-    N = 20  # number of categorical distributions
+    K = 26  # number of classes
+    N = 3  # number of categorical distributions
 
     def_device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 
